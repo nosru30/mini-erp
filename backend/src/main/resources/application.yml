@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: mini-erp-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mini_erp
+    username: mini_erp
+    password: mini_erp_password
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: mini-erp-postgres
+    environment:
+      POSTGRES_DB: mini_erp
+      POSTGRES_USER: mini_erp
+      POSTGRES_PASSWORD: mini_erp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
