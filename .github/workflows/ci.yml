@@ -43,6 +43,42 @@ jobs:
       - name: Build container image
         run: docker build --tag mini-erp-backend:ci .
 
+  publish-backend:
+    name: Publish backend image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: github-actions-backend-publish
+          aws-region: ap-northeast-1
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          ECR_REPOSITORY: mini-erp-dev-backend
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          docker build --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" backend
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -77,9 +113,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    strategy:
+      matrix:
+        directory:
+          - infrastructure/bootstrap
+          - infrastructure/environments/dev
+
     defaults:
       run:
-        working-directory: infrastructure/bootstrap
+        working-directory: ${{ matrix.directory }}
 
     steps:
       - name: Check out repository
@@ -91,7 +133,7 @@ jobs:
           terraform_version: "1.10.5"
 
       - name: Check formatting
-        run: terraform fmt -check -recursive ..
+        run: terraform fmt -check
 
       - name: Initialize without a backend
         run: terraform init -backend=false
