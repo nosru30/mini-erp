@@ -1,15 +1,54 @@
 services:
   postgres:
     image: postgres:17
-    container_name: mini-erp-postgres
     environment:
       POSTGRES_DB: mini_erp
       POSTGRES_USER: mini_erp
       POSTGRES_PASSWORD: mini_erp_password
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mini_erp -d mini_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    image: eclipse-temurin:17-jdk
+    working_dir: /workspace/backend
+    command: ["sh", "./gradlew", "bootRun"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mini_erp
+      SPRING_DATASOURCE_USERNAME: mini_erp
+      SPRING_DATASOURCE_PASSWORD: mini_erp_password
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /workspace/frontend
+    command: ["sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0"]
+    environment:
+      VITE_API_TARGET: http://backend:8080
+    volumes:
+      - .:/workspace
+      - frontend-node-modules:/workspace/frontend/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
   postgres-data:
+  gradle-cache:
+  frontend-node-modules:
+
