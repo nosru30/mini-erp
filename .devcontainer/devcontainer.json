@@ -20,6 +20,7 @@
       "onAutoForward": "silent"
     }
   },
+  "postCreateCommand": "mkdir -p /workspaces/.codex-data && ln -sfn /workspaces/.codex-data $HOME/.codex",
   "postStartCommand": "docker compose up -d",
   "customizations": {
     "vscode": {

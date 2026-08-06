@@ -71,3 +71,30 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: infrastructure/bootstrap
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive ..
+
+      - name: Initialize without a backend
+        run: terraform init -backend=false
+
+      - name: Validate
+        run: terraform validate
