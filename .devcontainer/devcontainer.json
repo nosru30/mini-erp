@@ -2,6 +2,8 @@
   "name": "Mini ERP Development",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/terraform:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
       "dockerDashComposeVersion": "v2"
@@ -25,7 +27,8 @@
         "vscjava.vscode-java-pack",
         "ms-azuretools.vscode-docker",
         "redhat.vscode-yaml",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "OpenAI.chatgpt"
       ]
     }
   },
