@@ -1,57 +1,27 @@
 import { useMemo, useState, type FormEvent } from "react";
-
-type CustomerOption = {
-  customerCode: string;
-  name: string;
-  active: boolean;
-};
-
-type ProductOption = {
-  productCode: string;
-  name: string;
-  unitPrice: number;
-  active: boolean;
-};
-
-type OrderItem = {
-  id: number;
-  productCode: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  lineAmount: number;
-};
-
-export type SavedSalesOrder = {
-  id: number;
-  orderNumber: string;
-  customerId: number;
-  customerCode: string;
-  customerName: string;
-  orderDate: string;
-  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
-  totalAmount: number;
-  items: OrderItem[];
-  createdAt: string;
-  updatedAt: string;
-};
+import type { Customer } from "../customers/types";
+import type { Product } from "../products/types";
+import { formatCurrency, today } from "../../shared/utils/format";
+import type { SavedSalesOrder } from "./types";
 
 type EditableOrder = SavedSalesOrder | null;
 type FormLine = { key: number; productCode: string; quantity: string };
 
 type Props = {
-  customers: CustomerOption[];
-  products: ProductOption[];
+  customers: Customer[];
+  products: Product[];
   order: EditableOrder;
   onClose: () => void;
   onSaved: (order: SavedSalesOrder, editing: boolean) => void;
 };
 
-function today() {
-  return new Date().toLocaleDateString("sv-SE");
-}
-
-export default function OrderFormDrawer({ customers, products, order, onClose, onSaved }: Props) {
+export default function OrderFormDrawer({
+  customers,
+  products,
+  order,
+  onClose,
+  onSaved,
+}: Props) {
   const [customerCode, setCustomerCode] = useState(order?.customerCode ?? "");
   const [orderDate, setOrderDate] = useState(order?.orderDate ?? today());
   const [lines, setLines] = useState<FormLine[]>(
@@ -68,21 +38,30 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
   const activeProducts = products.filter((product) => product.active);
 
   const estimatedTotal = useMemo(
-    () => lines.reduce((sum, line) => {
-      const product = products.find((item) => item.productCode === line.productCode);
-      return sum + (product?.unitPrice ?? 0) * (Number(line.quantity) || 0);
-    }, 0),
+    () =>
+      lines.reduce((sum, line) => {
+        const product = products.find(
+          (item) => item.productCode === line.productCode,
+        );
+        return sum + (product?.unitPrice ?? 0) * (Number(line.quantity) || 0);
+      }, 0),
     [lines, products],
   );
 
   const updateLine = (key: number, patch: Partial<FormLine>) => {
-    setLines((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
+    setLines((current) =>
+      current.map((line) => (line.key === key ? { ...line, ...patch } : line)),
+    );
   };
 
   const addLine = () => {
     setLines((current) => [
       ...current,
-      { key: Math.max(0, ...current.map((line) => line.key)) + 1, productCode: "", quantity: "1" },
+      {
+        key: Math.max(0, ...current.map((line) => line.key)) + 1,
+        productCode: "",
+        quantity: "1",
+      },
     ]);
   };
 
@@ -98,37 +77,49 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
       setError("顧客を選択してください。");
       return;
     }
-    if (!lines.length || lines.some((line) => !line.productCode || Number(line.quantity) < 1)) {
+    if (
+      !lines.length ||
+      lines.some((line) => !line.productCode || Number(line.quantity) < 1)
+    ) {
       setError("各明細の商品と1以上の数量を入力してください。");
       return;
     }
 
     setSaving(true);
     try {
-      const response = await fetch(order ? `/api/sales-orders/${order.id}` : "/api/sales-orders", {
-        method: order ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerCode,
-          orderDate,
-          items: lines.map((line) => ({
-            productCode: line.productCode,
-            quantity: Number(line.quantity),
-          })),
-        }),
-      });
+      const response = await fetch(
+        order ? `/api/sales-orders/${order.id}` : "/api/sales-orders",
+        {
+          method: order ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerCode,
+            orderDate,
+            items: lines.map((line) => ({
+              productCode: line.productCode,
+              quantity: Number(line.quantity),
+            })),
+          }),
+        },
+      );
 
       if (!response.ok) {
         try {
-          const body = await response.json() as Record<string, string> & { message?: string };
-          setError(body.message ?? Object.values(body)[0] ?? "受注を保存できませんでした。");
+          const body = (await response.json()) as Record<string, string> & {
+            message?: string;
+          };
+          setError(
+            body.message ??
+              Object.values(body)[0] ??
+              "受注を保存できませんでした。",
+          );
         } catch {
           setError("受注を保存できませんでした。");
         }
         return;
       }
 
-      onSaved(await response.json() as SavedSalesOrder, Boolean(order));
+      onSaved((await response.json()) as SavedSalesOrder, Boolean(order));
     } catch {
       setError("サーバーに接続できませんでした。");
     } finally {
@@ -137,7 +128,11 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={saving ? undefined : onClose}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={saving ? undefined : onClose}
+    >
       <section
         className="form-drawer order-form-drawer"
         role="dialog"
@@ -147,11 +142,22 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
       >
         <div className="drawer-header">
           <div>
-            <p className="eyebrow">{order ? "EDIT SALES ORDER" : "NEW SALES ORDER"}</p>
+            <p className="eyebrow">
+              {order ? "EDIT SALES ORDER" : "NEW SALES ORDER"}
+            </p>
             <h2 id="order-form-title">{order ? "受注を編集" : "受注を登録"}</h2>
-            {order && <span className="drawer-subtitle">{order.orderNumber}</span>}
+            {order && (
+              <span className="drawer-subtitle">{order.orderNumber}</span>
+            )}
           </div>
-          <button className="icon-button" onClick={onClose} disabled={saving} aria-label="閉じる">×</button>
+          <button
+            className="icon-button"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="閉じる"
+          >
+            ×
+          </button>
         </div>
 
         {error && <div className="form-alert">{error}</div>}
@@ -159,19 +165,35 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
         <form onSubmit={(event) => void submit(event)}>
           <div className="order-basic-fields">
             <label className="form-field">
-              <span className="field-label">顧客 <em>必須</em></span>
-              <select value={customerCode} onChange={(event) => setCustomerCode(event.target.value)} required>
+              <span className="field-label">
+                顧客 <em>必須</em>
+              </span>
+              <select
+                value={customerCode}
+                onChange={(event) => setCustomerCode(event.target.value)}
+                required
+              >
                 <option value="">顧客を選択</option>
                 {activeCustomers.map((customer) => (
-                  <option key={customer.customerCode} value={customer.customerCode}>
+                  <option
+                    key={customer.customerCode}
+                    value={customer.customerCode}
+                  >
                     {customer.customerCode}　{customer.name}
                   </option>
                 ))}
               </select>
             </label>
             <label className="form-field">
-              <span className="field-label">受注日 <em>必須</em></span>
-              <input type="date" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} required />
+              <span className="field-label">
+                受注日 <em>必須</em>
+              </span>
+              <input
+                type="date"
+                value={orderDate}
+                onChange={(event) => setOrderDate(event.target.value)}
+                required
+              />
             </label>
           </div>
 
@@ -180,13 +202,22 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
               <h3>受注明細</h3>
               <p>商品と数量を入力してください。</p>
             </div>
-            <button type="button" className="secondary-button add-line-button" onClick={addLine}>＋ 明細を追加</button>
+            <button
+              type="button"
+              className="secondary-button add-line-button"
+              onClick={addLine}
+            >
+              ＋ 明細を追加
+            </button>
           </div>
 
           <div className="order-lines">
             {lines.map((line, index) => {
-              const product = products.find((item) => item.productCode === line.productCode);
-              const lineAmount = (product?.unitPrice ?? 0) * (Number(line.quantity) || 0);
+              const product = products.find(
+                (item) => item.productCode === line.productCode,
+              );
+              const lineAmount =
+                (product?.unitPrice ?? 0) * (Number(line.quantity) || 0);
               return (
                 <div className="order-line" key={line.key}>
                   <div className="line-number">{index + 1}</div>
@@ -194,7 +225,11 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
                     <span>商品</span>
                     <select
                       value={line.productCode}
-                      onChange={(event) => updateLine(line.key, { productCode: event.target.value })}
+                      onChange={(event) =>
+                        updateLine(line.key, {
+                          productCode: event.target.value,
+                        })
+                      }
                       required
                     >
                       <option value="">商品を選択</option>
@@ -212,13 +247,15 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
                       min="1"
                       step="1"
                       value={line.quantity}
-                      onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
+                      onChange={(event) =>
+                        updateLine(line.key, { quantity: event.target.value })
+                      }
                       required
                     />
                   </label>
                   <div className="line-amount">
                     <span>金額</span>
-                    <strong>{formatYen(lineAmount)}</strong>
+                    <strong>{formatCurrency(lineAmount)}</strong>
                   </div>
                   <button
                     type="button"
@@ -226,7 +263,9 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
                     onClick={() => removeLine(line.key)}
                     disabled={lines.length === 1}
                     aria-label={`${index + 1}行目を削除`}
-                  >×</button>
+                  >
+                    ×
+                  </button>
                 </div>
               );
             })}
@@ -234,26 +273,36 @@ export default function OrderFormDrawer({ customers, products, order, onClose, o
 
           <div className="order-form-total">
             <span>受注金額（予定）</span>
-            <strong>{formatYen(estimatedTotal)}</strong>
+            <strong>{formatCurrency(estimatedTotal)}</strong>
           </div>
-          <p className="price-note">単価は登録済みの商品マスタから計算され、保存時に確定します。</p>
+          <p className="price-note">
+            単価は登録済みの商品マスタから計算され、保存時に確定します。
+          </p>
 
           <div className="form-actions order-form-actions">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>キャンセル</button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onClose}
+              disabled={saving}
+            >
+              キャンセル
+            </button>
             <button type="submit" className="primary-button" disabled={saving}>
-              {saving ? <><span className="button-spinner" />保存中</> : order ? "変更を保存" : "下書きで登録"}
+              {saving ? (
+                <>
+                  <span className="button-spinner" />
+                  保存中
+                </>
+              ) : order ? (
+                "変更を保存"
+              ) : (
+                "下書きで登録"
+              )}
             </button>
           </div>
         </form>
       </section>
     </div>
   );
-}
-
-function formatYen(value: number) {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 2,
-  }).format(value);
 }
