@@ -1,0 +1,19 @@
+import { Amplify } from "aws-amplify";
+
+const userPoolId = import.meta.env.VITE_COGNITO_USER_POOL_ID;
+const userPoolClientId = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
+
+export const cognitoConfigured = Boolean(userPoolId && userPoolClientId);
+
+export function configureAuth() {
+  if (!cognitoConfigured) return;
+
+  Amplify.configure({
+    Auth: {
+      Cognito: {
+        userPoolId,
+        userPoolClientId,
+      },
+    },
+  });
+}

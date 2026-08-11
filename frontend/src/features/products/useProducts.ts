@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import type { ApiErrors } from "../../shared/types";
-import { readError } from "../../shared/utils/api";
+import { apiFetch, readError } from "../../shared/utils/api";
 import type { Product, ProductForm } from "./types";
 
 const initialForm: ProductForm = {
@@ -39,7 +39,7 @@ export function useProducts(
     setLoading(true);
     setLoadError("");
     try {
-      const response = await fetch("/api/products");
+      const response = await apiFetch("/api/products");
       if (!response.ok) throw new Error("商品マスタを取得できませんでした。");
       setProducts((await response.json()) as Product[]);
       setHasLoaded(true);
@@ -99,7 +99,7 @@ export function useProducts(
     setSaving(true);
     setFormErrors({});
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         editingId ? `/api/products/${editingId}` : "/api/products",
         {
           method: editingId ? "PUT" : "POST",

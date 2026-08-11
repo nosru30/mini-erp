@@ -10,10 +10,12 @@ import OrderFormDrawer from "../features/sales-orders/OrderFormDrawer";
 import SalesOrdersScreen from "../features/sales-orders/SalesOrdersScreen";
 import { useSalesOrders } from "../features/sales-orders/useSalesOrders";
 import type { MasterKind } from "../shared/types";
+import { useAuth } from "../auth/useAuth";
 import "./App.css";
 import AppSidebar from "./AppSidebar";
 
 export default function App() {
+  const auth = useAuth();
   const [activeKind, setActiveKind] = useState<MasterKind>("salesOrders");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
@@ -55,7 +57,9 @@ export default function App() {
       <AppSidebar
         activeKind={activeKind}
         hasError={Boolean(activeError)}
+        username={auth.username ?? ""}
         onNavigate={setActiveKind}
+        onSignOut={() => void auth.signOut()}
       />
 
       {activeKind === "salesOrders" ? (

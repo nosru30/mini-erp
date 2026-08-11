@@ -13,6 +13,16 @@ output "frontend_url" {
   value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
 
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool used to authenticate application users."
+  value       = aws_cognito_user_pool.users.id
+}
+
+output "cognito_user_pool_client_id" {
+  description = "Public Cognito User Pool client ID used by the React application."
+  value       = aws_cognito_user_pool_client.frontend.id
+}
+
 output "backend_ecr_repository_name" {
   description = "ECR repository name for backend container images."
   value       = aws_ecr_repository.backend.name

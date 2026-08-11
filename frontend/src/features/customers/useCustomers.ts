@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import type { ApiErrors } from "../../shared/types";
-import { readError } from "../../shared/utils/api";
+import { apiFetch, readError } from "../../shared/utils/api";
 import type { Customer, CustomerForm } from "./types";
 
 const initialForm: CustomerForm = {
@@ -40,7 +40,7 @@ export function useCustomers(
     setLoading(true);
     setLoadError("");
     try {
-      const response = await fetch("/api/customers");
+      const response = await apiFetch("/api/customers");
       if (!response.ok) throw new Error("顧客マスタを取得できませんでした。");
       setCustomers((await response.json()) as Customer[]);
       setHasLoaded(true);
@@ -98,7 +98,7 @@ export function useCustomers(
     setSaving(true);
     setFormErrors({});
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         editingId ? `/api/customers/${editingId}` : "/api/customers",
         {
           method: editingId ? "PUT" : "POST",

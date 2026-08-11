@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { readError } from "../../shared/utils/api";
+import { apiFetch, readError } from "../../shared/utils/api";
 import type {
   SalesOrderDetail,
   SalesOrderSummary,
@@ -60,7 +60,7 @@ export function useSalesOrders(
     setLoading(true);
     setLoadError("");
     try {
-      const response = await fetch("/api/sales-orders");
+      const response = await apiFetch("/api/sales-orders");
       if (!response.ok) throw new Error("受注情報を取得できませんでした。");
       setOrders((await response.json()) as SalesOrderSummary[]);
       setHasLoaded(true);
@@ -121,7 +121,7 @@ export function useSalesOrders(
     setDetailError("");
     setSelectedOrder(null);
     try {
-      const response = await fetch(`/api/sales-orders/${id}`);
+      const response = await apiFetch(`/api/sales-orders/${id}`);
       if (!response.ok) throw new Error("受注情報を取得できませんでした。");
       setSelectedOrder((await response.json()) as SalesOrderDetail);
     } catch (error) {
@@ -152,7 +152,7 @@ export function useSalesOrders(
     setAction(nextAction);
     setActionError("");
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/sales-orders/${order.id}/${nextAction}`,
         { method: "POST" },
       );

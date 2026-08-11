@@ -3,13 +3,17 @@ import type { MasterKind } from "../shared/types";
 type Props = {
   activeKind: MasterKind;
   hasError: boolean;
+  username: string;
   onNavigate: (kind: MasterKind) => void;
+  onSignOut: () => void;
 };
 
 export default function AppSidebar({
   activeKind,
   hasError,
+  username,
   onNavigate,
+  onSignOut,
 }: Props) {
   return (
     <aside className="sidebar">
@@ -46,6 +50,11 @@ export default function AppSidebar({
           <span className="nav-icon">C</span>顧客マスタ
         </button>
       </nav>
+      <div className="sidebar-account">
+        <span>ログイン中</span>
+        <strong title={username}>{username}</strong>
+        <button onClick={onSignOut}>ログアウト</button>
+      </div>
       <div className="sidebar-footer">
         <span className={`connection-dot ${hasError ? "error" : ""}`} />
         {hasError ? "API 接続エラー" : "システム稼働中"}

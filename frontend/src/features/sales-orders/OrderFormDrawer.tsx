@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { Customer } from "../customers/types";
 import type { Product } from "../products/types";
+import { apiFetch } from "../../shared/utils/api";
 import { formatCurrency, today } from "../../shared/utils/format";
 import type { SavedSalesOrder } from "./types";
 
@@ -87,7 +88,7 @@ export default function OrderFormDrawer({
 
     setSaving(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         order ? `/api/sales-orders/${order.id}` : "/api/sales-orders",
         {
           method: order ? "PUT" : "POST",

@@ -44,9 +44,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -64,8 +61,21 @@ jobs:
             --name /mini-erp/dev/frontend/cloudfront-distribution-id \
             --query Parameter.Value \
             --output text)"
+          VITE_COGNITO_USER_POOL_ID="$(aws ssm get-parameter \
+            --name /mini-erp/dev/frontend/cognito-user-pool-id \
+            --query Parameter.Value \
+            --output text)"
+          VITE_COGNITO_USER_POOL_CLIENT_ID="$(aws ssm get-parameter \
+            --name /mini-erp/dev/frontend/cognito-user-pool-client-id \
+            --query Parameter.Value \
+            --output text)"
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> "$GITHUB_ENV"
           echo "CLOUDFRONT_DISTRIBUTION_ID=$CLOUDFRONT_DISTRIBUTION_ID" >> "$GITHUB_ENV"
+          echo "VITE_COGNITO_USER_POOL_ID=$VITE_COGNITO_USER_POOL_ID" >> "$GITHUB_ENV"
+          echo "VITE_COGNITO_USER_POOL_CLIENT_ID=$VITE_COGNITO_USER_POOL_CLIENT_ID" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: npm run build
 
       - name: Upload versioned assets
         run: >-

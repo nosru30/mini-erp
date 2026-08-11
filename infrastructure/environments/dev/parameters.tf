@@ -14,6 +14,18 @@ resource "aws_ssm_parameter" "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.frontend.id
 }
 
+resource "aws_ssm_parameter" "cognito_user_pool_id" {
+  name  = "${local.frontend_parameter_path}/cognito-user-pool-id"
+  type  = "String"
+  value = aws_cognito_user_pool.users.id
+}
+
+resource "aws_ssm_parameter" "cognito_user_pool_client_id" {
+  name  = "${local.frontend_parameter_path}/cognito-user-pool-client-id"
+  type  = "String"
+  value = aws_cognito_user_pool_client.frontend.id
+}
+
 data "aws_iam_policy_document" "github_actions_frontend_parameters" {
   statement {
     sid     = "ReadFrontendDeploymentParameters"
@@ -21,6 +33,8 @@ data "aws_iam_policy_document" "github_actions_frontend_parameters" {
     resources = [
       aws_ssm_parameter.frontend_bucket_name.arn,
       aws_ssm_parameter.cloudfront_distribution_id.arn,
+      aws_ssm_parameter.cognito_user_pool_id.arn,
+      aws_ssm_parameter.cognito_user_pool_client_id.arn,
     ]
   }
 }
