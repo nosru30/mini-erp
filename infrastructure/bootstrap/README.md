@@ -40,6 +40,21 @@ terraform output -raw state_bucket_name
 terraform output -raw backend_example
 ```
 
+## GitHub ActionsからのTerraform実行
+
+bootstrapはアプリデプロイ用ロールとは別に、Terraform実行用の
+`mini-erp-terraform` IAMロールを作成します。bootstrap適用後、ロールARNを確認します。
+
+```bash
+terraform output -raw terraform_actions_role_arn
+```
+
+この値をGitHub Repository Variableの`AWS_TERRAFORM_ROLE_ARN`へ登録します。
+
+GitHubでは`dev-infrastructure` Environmentを作成し、Required reviewersを設定します。
+`Terraform dev` Workflowを`main`ブランチから手動実行すると、plan成功後にEnvironmentの
+承認待ちとなり、承認後にdev環境へapplyします。
+
 ## 後続のTerraformでの利用
 
 `infrastructure/environments/dev`などのTerraform rootに、出力された設定を追加します。

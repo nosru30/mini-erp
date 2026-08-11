@@ -40,8 +40,41 @@ variable "github_repository" {
   }
 }
 
+variable "github_repository_owner_id" {
+  description = "Immutable GitHub owner ID included in the customized OIDC subject."
+  type        = string
+  default     = "106005051"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
+    error_message = "github_repository_owner_id must contain only digits."
+  }
+}
+
+variable "github_repository_id" {
+  description = "Immutable GitHub repository ID included in the customized OIDC subject."
+  type        = string
+  default     = "1310859681"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id must contain only digits."
+  }
+}
+
 variable "github_branch" {
   description = "GitHub branch allowed to assume the Actions IAM role."
   type        = string
   default     = "main"
+}
+
+variable "github_terraform_environment" {
+  description = "GitHub Environment whose approved jobs may assume the Terraform IAM role."
+  type        = string
+  default     = "dev-infrastructure"
+
+  validation {
+    condition     = length(trimspace(var.github_terraform_environment)) > 0
+    error_message = "github_terraform_environment must not be empty."
+  }
 }

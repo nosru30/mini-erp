@@ -21,3 +21,13 @@ variable "github_actions_role_name" {
   type        = string
   default     = "mini-erp-github-actions"
 }
+
+variable "backend_image_tag" {
+  description = "Existing ECR image tag deployed to ECS, in sha-<40 character Git commit SHA> format."
+  type        = string
+
+  validation {
+    condition     = can(regex("^sha-[0-9a-f]{40}$", var.backend_image_tag))
+    error_message = "backend_image_tag must use the sha-<40 character lowercase Git commit SHA> format."
+  }
+}

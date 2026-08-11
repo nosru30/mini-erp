@@ -6,6 +6,17 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
   ]
 }
 
+locals {
+  github_repository_parts = split("/", var.github_repository)
+  github_oidc_repository = format(
+    "%s@%s/%s@%s",
+    local.github_repository_parts[0],
+    var.github_repository_owner_id,
+    local.github_repository_parts[1],
+    var.github_repository_id,
+  )
+}
+
 data "aws_iam_policy_document" "github_actions_assume_role" {
   statement {
     sid     = "AllowGitHubActionsFromMain"
@@ -28,7 +39,7 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+      values   = ["repo:${local.github_oidc_repository}:ref:refs/heads/${var.github_branch}"]
     }
   }
 }

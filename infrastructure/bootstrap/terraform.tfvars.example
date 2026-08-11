@@ -1,8 +1,11 @@
 aws_region   = "ap-northeast-1"
 project_name = "mini-erp"
 
-github_repository = "nosru30/mini-erp"
-github_branch     = "main"
+github_repository          = "nosru30/mini-erp"
+github_repository_owner_id = "106005051"
+github_repository_id       = "1310859681"
+github_branch              = "main"
+github_terraform_environment = "dev-infrastructure"
 
 # Normally omit this value. The default name includes the AWS account ID and region.
 # state_bucket_name = "your-globally-unique-terraform-state-bucket"
