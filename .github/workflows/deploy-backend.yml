@@ -51,7 +51,7 @@ jobs:
     needs:
       - verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     permissions:
       contents: read
@@ -99,4 +99,59 @@ jobs:
           IMAGE_TAG: sha-${{ github.sha }}
         run: |
           docker build --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" backend
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "Image $IMAGE_TAG already exists; skipping push."
+          else
+            docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          fi
+
+      - name: Register task definition
+        id: task-definition
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          ECR_REPOSITORY: mini-erp-dev-backend
+          ECS_TASK_FAMILY: mini-erp-dev-backend
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          TASK_DEFINITION="$(aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json)"
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          REGISTER_INPUT="$(jq --arg image "$IMAGE_URI" '
+            .containerDefinitions |= map(
+              if .name == "backend" then .image = $image else . end
+            )
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy
+              )
+          ' <<< "$TASK_DEFINITION")"
+          TASK_DEFINITION_ARN="$(aws ecs register-task-definition \
+            --cli-input-json "$REGISTER_INPUT" \
+            --query taskDefinition.taskDefinitionArn \
+            --output text)"
+          echo "task-definition-arn=$TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy ECS service
+        env:
+          ECS_CLUSTER: mini-erp-dev
+          ECS_SERVICE: backend
+          TASK_DEFINITION_ARN: ${{ steps.task-definition.outputs.task-definition-arn }}
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$TASK_DEFINITION_ARN" \
+            --desired-count 1 \
+            --force-new-deployment
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"

@@ -13,8 +13,7 @@ bootstrapで作成したstateバケットとGitHub Actions用IAMロールが必�
 terraform init
 terraform fmt -check
 terraform validate
-export BACKEND_IMAGE_TAG="sha-$(git rev-parse HEAD)"
-terraform plan -var="backend_image_tag=${BACKEND_IMAGE_TAG}" -out=dev.tfplan
+terraform plan -out=dev.tfplan
 terraform apply dev.tfplan
 ```
 
@@ -44,6 +43,7 @@ Repository Variablesへ次を登録します。
 
 通常CIのバックエンドテストが成功すると、`main`ブランチへのpush時だけDockerイメージをECRへpushします。イメージタグは`sha-<Git commit SHA>`です。
 
-ECRに`backend_image_tag`で指定するバックエンドイメージが必要です。先に対象コミットのCIを成功させ、`sha-<Git commit SHA>`タグがECRに存在することを確認してからplan/applyします。
+TerraformはECSサービスを`desired_count = 0`で作成します。バックエンドのデプロイWorkflowが
+`sha-<Git commit SHA>`タグをECRへpushし、新しいタスク定義を登録してサービスを起動します。
 
 ECS TaskはNAT Gatewayの費用を避けるためpublic subnetでpublic IPを持ちますが、Security GroupはALBからの8080番ポートだけを許可します。RDSはprivate database subnetに配置し、ECSからのPostgreSQL接続だけを許可します。

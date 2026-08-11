@@ -2,11 +2,6 @@ name: Terraform dev
 
 on:
   workflow_dispatch:
-    inputs:
-      backend_image_tag:
-        description: Existing ECR image tag to deploy (sha-<40 character commit SHA>)
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -55,12 +50,7 @@ jobs:
         run: terraform validate
 
       - name: Plan changes
-        env:
-          BACKEND_IMAGE_TAG: ${{ inputs.backend_image_tag }}
-        run: >-
-          terraform plan
-          -input=false
-          -var="backend_image_tag=${BACKEND_IMAGE_TAG}"
+        run: terraform plan -input=false
 
   apply:
     name: Apply
@@ -98,12 +88,9 @@ jobs:
         run: terraform init -input=false
 
       - name: Create approved plan
-        env:
-          BACKEND_IMAGE_TAG: ${{ inputs.backend_image_tag }}
         run: >-
           terraform plan
           -input=false
-          -var="backend_image_tag=${BACKEND_IMAGE_TAG}"
           -out=dev.tfplan
 
       - name: Apply changes

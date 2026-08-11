@@ -110,7 +110,7 @@ resource "aws_ecs_task_definition" "backend" {
   container_definitions = jsonencode([
     {
       name      = "backend"
-      image     = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
+      image     = "${aws_ecr_repository.backend.repository_url}:bootstrap"
       essential = true
 
       portMappings = [
@@ -157,7 +157,7 @@ resource "aws_ecs_service" "backend" {
   name            = "backend"
   cluster         = aws_ecs_cluster.backend.id
   task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = 1
+  desired_count   = 0
   launch_type     = "FARGATE"
 
   health_check_grace_period_seconds = 120
@@ -184,4 +184,11 @@ resource "aws_ecs_service" "backend" {
     aws_iam_role_policy.ecs_task_execution_secrets,
     aws_lb_listener.backend,
   ]
+
+  lifecycle {
+    ignore_changes = [
+      desired_count,
+      task_definition,
+    ]
+  }
 }
