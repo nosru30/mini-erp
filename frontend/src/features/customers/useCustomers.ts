@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -20,10 +21,13 @@ const initialForm: CustomerForm = {
 export function useCustomers(
   query: string,
   showNotice: (message: string) => void,
+  enabled: boolean,
 ) {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const loadingRef = useRef(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,12 +35,15 @@ export function useCustomers(
   const [form, setForm] = useState(initialForm);
 
   const loadCustomers = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setLoadError("");
     try {
       const response = await fetch("/api/customers");
       if (!response.ok) throw new Error("顧客マスタを取得できませんでした。");
       setCustomers((await response.json()) as Customer[]);
+      setHasLoaded(true);
     } catch (error) {
       setLoadError(
         error instanceof Error
@@ -44,12 +51,13 @@ export function useCustomers(
           : "顧客マスタを取得できませんでした。",
       );
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
   useEffect(() => {
-    void loadCustomers();
-  }, [loadCustomers]);
+    if (enabled && !hasLoaded) void loadCustomers();
+  }, [enabled, hasLoaded, loadCustomers]);
 
   const filteredCustomers = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
@@ -130,7 +138,7 @@ export function useCustomers(
   return {
     customers,
     filteredCustomers,
-    loading,
+    loading: loading || (enabled && !hasLoaded && !loadError),
     loadError,
     loadCustomers,
     formOpen,

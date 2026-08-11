@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -19,10 +20,13 @@ const initialForm: ProductForm = {
 export function useProducts(
   query: string,
   showNotice: (message: string) => void,
+  enabled: boolean,
 ) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const loadingRef = useRef(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -30,12 +34,15 @@ export function useProducts(
   const [form, setForm] = useState(initialForm);
 
   const loadProducts = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setLoadError("");
     try {
       const response = await fetch("/api/products");
       if (!response.ok) throw new Error("商品マスタを取得できませんでした。");
       setProducts((await response.json()) as Product[]);
+      setHasLoaded(true);
     } catch (error) {
       setLoadError(
         error instanceof Error
@@ -43,13 +50,14 @@ export function useProducts(
           : "商品マスタを取得できませんでした。",
       );
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadProducts();
-  }, [loadProducts]);
+    if (enabled && !hasLoaded) void loadProducts();
+  }, [enabled, hasLoaded, loadProducts]);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
@@ -131,7 +139,7 @@ export function useProducts(
   return {
     products,
     filteredProducts,
-    loading,
+    loading: loading || (enabled && !hasLoaded && !loadError),
     loadError,
     loadProducts,
     formOpen,

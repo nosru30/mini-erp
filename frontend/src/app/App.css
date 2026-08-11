@@ -72,7 +72,7 @@
   border-radius: 8px;
   padding: 11px 12px;
   display: grid;
-  grid-template-columns: 27px 1fr auto;
+  grid-template-columns: 27px 1fr;
   align-items: center;
   gap: 8px;
   color: #b9c6c0;
@@ -102,10 +102,6 @@
 .nav-item.active .nav-icon {
   border-color: #63ad8e;
   color: #89d1b2;
-}
-.nav-count {
-  color: #82928a;
-  font-size: 12px;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -692,7 +688,7 @@ tbody tr:hover {
   }
   .nav-item {
     width: auto;
-    grid-template-columns: 25px auto auto;
+    grid-template-columns: 25px auto;
   }
   .workspace {
     margin-left: 0;
@@ -721,9 +717,6 @@ tbody tr:hover {
     width: 50%;
     grid-template-columns: 23px 1fr;
     padding: 9px;
-  }
-  .nav-count {
-    display: none;
   }
   .workspace {
     padding: 26px 15px 40px;

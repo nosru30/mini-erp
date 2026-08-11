@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { readError } from "../../shared/utils/api";
 import type {
   SalesOrderDetail,
@@ -34,10 +34,13 @@ function toSummary(order: SalesOrderDetail): SalesOrderSummary {
 export function useSalesOrders(
   query: string,
   showNotice: (message: string) => void,
+  enabled: boolean,
 ) {
   const [orders, setOrders] = useState<SalesOrderSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const loadingRef = useRef(false);
   const [selectedOrder, setSelectedOrder] = useState<SalesOrderDetail | null>(
     null,
   );
@@ -52,12 +55,15 @@ export function useSalesOrders(
   );
 
   const loadOrders = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setLoadError("");
     try {
       const response = await fetch("/api/sales-orders");
       if (!response.ok) throw new Error("受注情報を取得できませんでした。");
       setOrders((await response.json()) as SalesOrderSummary[]);
+      setHasLoaded(true);
     } catch (error) {
       setLoadError(
         error instanceof Error
@@ -65,12 +71,13 @@ export function useSalesOrders(
           : "受注情報を取得できませんでした。",
       );
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
   useEffect(() => {
-    void loadOrders();
-  }, [loadOrders]);
+    if (enabled && !hasLoaded) void loadOrders();
+  }, [enabled, hasLoaded, loadOrders]);
 
   const filteredOrders = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
@@ -181,7 +188,7 @@ export function useSalesOrders(
   return {
     orders,
     filteredOrders,
-    loading,
+    loading: loading || (enabled && !hasLoaded && !loadError),
     loadError,
     loadOrders,
     formOpen,

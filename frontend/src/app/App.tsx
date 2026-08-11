@@ -23,9 +23,21 @@ export default function App() {
     window.setTimeout(() => setNotice(""), 3200);
   };
 
-  const salesOrders = useSalesOrders(query, showNotice);
-  const products = useProducts(query, showNotice);
-  const customers = useCustomers(query, showNotice);
+  const salesOrders = useSalesOrders(
+    query,
+    showNotice,
+    activeKind === "salesOrders",
+  );
+  const products = useProducts(
+    query,
+    showNotice,
+    activeKind === "products" || salesOrders.formOpen,
+  );
+  const customers = useCustomers(
+    query,
+    showNotice,
+    activeKind === "customers" || salesOrders.formOpen,
+  );
 
   useEffect(() => {
     setQuery("");
@@ -42,9 +54,6 @@ export default function App() {
     <div className="app-shell">
       <AppSidebar
         activeKind={activeKind}
-        salesOrderCount={salesOrders.orders.length}
-        productCount={products.products.length}
-        customerCount={customers.customers.length}
         hasError={Boolean(activeError)}
         onNavigate={setActiveKind}
       />
