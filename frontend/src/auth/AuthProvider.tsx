@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AuthContext, type AuthState } from "./authContext";
 import { cognitoConfigured } from "./config";
+import { AUTH_SESSION_EXPIRED_EVENT } from "./sessionEvents";
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(cognitoConfigured);
@@ -19,6 +20,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       .then((user) => setUsername(user.signInDetails?.loginId ?? user.username))
       .catch(() => setUsername(null))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const clearExpiredSession = () => setUsername(null);
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, clearExpiredSession);
+    return () =>
+      window.removeEventListener(
+        AUTH_SESSION_EXPIRED_EVENT,
+        clearExpiredSession,
+      );
   }, []);
 
   const value = useMemo<AuthState>(
