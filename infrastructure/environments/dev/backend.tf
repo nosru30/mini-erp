@@ -132,6 +132,18 @@ resource "aws_ecs_task_definition" "backend" {
           name  = "SPRING_DATASOURCE_USERNAME"
           value = aws_db_instance.backend.username
         },
+        {
+          name  = "COGNITO_ISSUER_URI"
+          value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.users.id}"
+        },
+        {
+          name  = "COGNITO_USER_POOL_CLIENT_ID"
+          value = aws_cognito_user_pool_client.frontend.id
+        },
+        {
+          name  = "API_DOCS_ENABLED"
+          value = "true"
+        },
       ]
 
       secrets = [

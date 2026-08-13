@@ -51,6 +51,7 @@ data "aws_iam_policy_document" "terraform_actions_iam" {
       "iam:GetRole",
       "iam:GetRolePolicy",
       "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole",
       "iam:ListRolePolicies",
       "iam:PassRole",
       "iam:PutRolePolicy",

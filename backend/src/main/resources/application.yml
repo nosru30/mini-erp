@@ -21,11 +21,18 @@ spring:
 server:
   port: 8080
 
+app:
+  cognito:
+    issuer-uri: ${COGNITO_ISSUER_URI}
+    client-id: ${COGNITO_USER_POOL_CLIENT_ID}
+  docs:
+    enabled: ${API_DOCS_ENABLED:false}
+
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${API_DOCS_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${API_DOCS_ENABLED:false}
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
