@@ -61,3 +61,13 @@ TerraformはECSサービスを`desired_count = 0`で作成します。バック�
 `sha-<Git commit SHA>`タグをECRへpushし、新しいタスク定義を登録してサービスを起動します。
 
 ECS TaskはNAT Gatewayの費用を避けるためpublic subnetでpublic IPを持ちますが、Security GroupはALBからの8080番ポートだけを許可します。RDSはprivate database subnetに配置し、ECSからのPostgreSQL接続だけを許可します。
+
+## dev環境の削除と再作成
+
+GitHub Actionsの`Destroy Terraform dev`を手動実行し、確認欄へ`DESTROY-dev`と入力します。
+destroy plan成功後、`dev-infrastructure` Environmentの承認を経てdev環境を削除します。
+
+この操作ではRDSデータ、Cognitoユーザー、ECRイメージ、S3上のフロントエンド、ログが失われます。
+bootstrapとTerraform remote state用S3バケットは削除されないため、`Terraform dev`を再実行すると
+空のdevインフラを再作成できます。その後、Cognitoユーザー作成、バックエンド、フロントエンドの
+順に再デプロイします。

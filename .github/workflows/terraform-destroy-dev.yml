@@ -1,0 +1,108 @@
+name: Destroy Terraform dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DESTROY-dev to confirm permanent deletion
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan destruction
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev
+
+    steps:
+      - name: Validate confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$CONFIRMATION" != "DESTROY-dev" ]; then
+            echo "Confirmation must exactly match DESTROY-dev."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-terraform-dev-destroy-plan
+          aws-region: ap-northeast-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Check formatting
+        run: terraform fmt -check
+
+      - name: Validate configuration
+        run: terraform validate
+
+      - name: Show destroy plan
+        run: terraform plan -destroy -input=false
+
+  destroy:
+    name: Destroy
+    needs:
+      - plan
+    environment: dev-infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-terraform-dev-destroy
+          aws-region: ap-northeast-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Create approved destroy plan
+        run: terraform plan -destroy -input=false -out=destroy.tfplan
+
+      - name: Destroy dev environment
+        run: terraform apply -input=false destroy.tfplan
