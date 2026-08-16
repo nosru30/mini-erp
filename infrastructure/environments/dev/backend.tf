@@ -42,6 +42,22 @@ resource "aws_iam_role" "ecs_task" {
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
 }
 
+data "aws_iam_policy_document" "ecs_task_cognito_users" {
+  statement {
+    actions = [
+      "cognito-idp:AdminCreateUser",
+      "cognito-idp:ListUsers",
+    ]
+    resources = [aws_cognito_user_pool.users.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_task_cognito_users" {
+  name   = "${var.project_name}-${var.environment}-cognito-users"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.ecs_task_cognito_users.json
+}
+
 resource "aws_ecs_cluster" "backend" {
   name = "${var.project_name}-${var.environment}"
 
@@ -139,6 +155,10 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "COGNITO_USER_POOL_CLIENT_ID"
           value = aws_cognito_user_pool_client.frontend.id
+        },
+        {
+          name  = "COGNITO_USER_POOL_ID"
+          value = aws_cognito_user_pool.users.id
         },
         {
           name  = "API_DOCS_ENABLED"

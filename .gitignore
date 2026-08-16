@@ -1,0 +1,4 @@
+# Local Docker Compose environment values
+.env
+.env.*
+!.env.example

@@ -25,6 +25,8 @@ app:
   cognito:
     issuer-uri: ${COGNITO_ISSUER_URI}
     client-id: ${COGNITO_USER_POOL_CLIENT_ID}
+    user-pool-id: ${COGNITO_USER_POOL_ID}
+    region: ${AWS_REGION:ap-northeast-1}
   docs:
     enabled: ${API_DOCS_ENABLED:false}
 

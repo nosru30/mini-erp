@@ -22,8 +22,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mini_erp
       SPRING_DATASOURCE_USERNAME: mini_erp
       SPRING_DATASOURCE_PASSWORD: mini_erp_password
-      COGNITO_ISSUER_URI: ${COGNITO_ISSUER_URI:-https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_tD7FlpOKs}
-      COGNITO_USER_POOL_CLIENT_ID: ${COGNITO_USER_POOL_CLIENT_ID:-1i2h1c14v6g0defmc1lle98qdn}
+      COGNITO_ISSUER_URI: ${COGNITO_ISSUER_URI:?COGNITO_ISSUER_URI is required}
+      COGNITO_USER_POOL_CLIENT_ID: ${COGNITO_USER_POOL_CLIENT_ID:?COGNITO_USER_POOL_CLIENT_ID is required}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:?COGNITO_USER_POOL_ID is required}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-1}
       API_DOCS_ENABLED: "true"
     volumes:
       - .:/workspace
@@ -41,6 +43,8 @@ services:
     command: ["sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0"]
     environment:
       VITE_API_TARGET: http://backend:8080
+      VITE_COGNITO_USER_POOL_ID: ${VITE_COGNITO_USER_POOL_ID:?VITE_COGNITO_USER_POOL_ID is required}
+      VITE_COGNITO_USER_POOL_CLIENT_ID: ${VITE_COGNITO_USER_POOL_CLIENT_ID:?VITE_COGNITO_USER_POOL_CLIENT_ID is required}
     volumes:
       - .:/workspace
       - frontend-node-modules:/workspace/frontend/node_modules
