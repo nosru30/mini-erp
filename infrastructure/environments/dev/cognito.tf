@@ -61,3 +61,9 @@ resource "aws_cognito_user_pool_client" "frontend" {
     refresh_token = "days"
   }
 }
+
+resource "aws_cognito_user_group" "admins" {
+  name         = "ADMIN"
+  user_pool_id = aws_cognito_user_pool.users.id
+  description  = "Mini ERP system administrators"
+}

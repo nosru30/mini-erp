@@ -25,7 +25,14 @@ export function StatusBadge({ active }: { active: boolean }) {
 }
 
 export function EmptyState({ kind }: { kind: MasterKind }) {
-  const mark = kind === "products" ? "商" : kind === "customers" ? "顧" : "受";
+  const mark =
+    kind === "products"
+      ? "商"
+      : kind === "customers"
+        ? "顧"
+        : kind === "users"
+          ? "人"
+          : "受";
   const description =
     kind === "salesOrders"
       ? "検索条件を変更するか、受注登録後に再読み込みしてください。"

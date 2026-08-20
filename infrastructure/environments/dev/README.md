@@ -53,6 +53,18 @@ aws cognito-idp admin-create-user \
   --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
 ```
 
+最初の管理者は管理画面から作成できないため、作成後にCLIで`ADMIN`グループへ追加します。
+
+```bash
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id "$(terraform output -raw cognito_user_pool_id)" \
+  --username user@example.com \
+  --group-name ADMIN
+```
+
+グループ追加後に発行されたアクセストークンから`cognito:groups`へ`ADMIN`が含まれ、
+フロントエンドのユーザー管理メニューと`/api/admin/*`へのアクセスが有効になります。
+
 `main`ブランチの`frontend/**`に変更がpushされると、フロントエンドをビルドしてS3へ同期し、CloudFrontキャッシュを無効化します。
 
 通常CIのバックエンドテストが成功すると、`main`ブランチへのpush時だけDockerイメージをECRへpushします。イメージタグは`sha-<Git commit SHA>`です。

@@ -1,5 +1,6 @@
 import {
   confirmSignIn,
+  fetchAuthSession,
   getCurrentUser,
   signIn,
   signOut,
@@ -12,18 +13,34 @@ import { AUTH_SESSION_EXPIRED_EVENT } from "./sessionEvents";
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(cognitoConfigured);
   const [username, setUsername] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const loadAuthenticatedUser = async () => {
+    const [user, session] = await Promise.all([
+      getCurrentUser(),
+      fetchAuthSession(),
+    ]);
+    const groups = session.tokens?.accessToken.payload["cognito:groups"];
+    setUsername(user.signInDetails?.loginId ?? user.username);
+    setIsAdmin(Array.isArray(groups) && groups.includes("ADMIN"));
+  };
 
   useEffect(() => {
     if (!cognitoConfigured) return;
 
-    void getCurrentUser()
-      .then((user) => setUsername(user.signInDetails?.loginId ?? user.username))
-      .catch(() => setUsername(null))
+    void loadAuthenticatedUser()
+      .catch(() => {
+        setUsername(null);
+        setIsAdmin(false);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const clearExpiredSession = () => setUsername(null);
+    const clearExpiredSession = () => {
+      setUsername(null);
+      setIsAdmin(false);
+    };
     window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, clearExpiredSession);
     return () =>
       window.removeEventListener(
@@ -37,12 +54,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       configured: cognitoConfigured,
       loading,
       username,
+      isAdmin,
       async signIn(loginId, password) {
         const result = await signIn({ username: loginId, password });
 
         if (result.isSignedIn) {
-          const user = await getCurrentUser();
-          setUsername(user.signInDetails?.loginId ?? user.username);
+          await loadAuthenticatedUser();
           return "signedIn";
         }
 
@@ -60,15 +77,15 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         if (!result.isSignedIn) {
           throw new Error(`未対応の認証ステップです: ${result.nextStep.signInStep}`);
         }
-        const user = await getCurrentUser();
-        setUsername(user.signInDetails?.loginId ?? user.username);
+        await loadAuthenticatedUser();
       },
       async signOut() {
         await signOut();
         setUsername(null);
+        setIsAdmin(false);
       },
     }),
-    [loading, username],
+    [isAdmin, loading, username],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

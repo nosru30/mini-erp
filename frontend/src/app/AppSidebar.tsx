@@ -4,6 +4,7 @@ type Props = {
   activeKind: MasterKind;
   hasError: boolean;
   username: string;
+  isAdmin: boolean;
   onNavigate: (kind: MasterKind) => void;
   onSignOut: () => void;
 };
@@ -12,6 +13,7 @@ export default function AppSidebar({
   activeKind,
   hasError,
   username,
+  isAdmin,
   onNavigate,
   onSignOut,
 }: Props) {
@@ -49,6 +51,17 @@ export default function AppSidebar({
         >
           <span className="nav-icon">C</span>顧客マスタ
         </button>
+        {isAdmin && (
+          <>
+            <p className="nav-label nav-section">システム管理</p>
+            <button
+              className={activeKind === "users" ? "nav-item active" : "nav-item"}
+              onClick={() => onNavigate("users")}
+            >
+              <span className="nav-icon">U</span>ユーザー管理
+            </button>
+          </>
+        )}
       </nav>
       <div className="sidebar-account">
         <span>ログイン中</span>

@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import AdminUserFormDrawer from "../features/admin-users/AdminUserFormDrawer";
+import AdminUsersScreen from "../features/admin-users/AdminUsersScreen";
+import { useAdminUsers } from "../features/admin-users/useAdminUsers";
 import CustomerFormDrawer from "../features/customers/CustomerFormDrawer";
 import CustomersScreen from "../features/customers/CustomersScreen";
 import { useCustomers } from "../features/customers/useCustomers";
@@ -40,17 +43,30 @@ export default function App() {
     showNotice,
     activeKind === "customers" || salesOrders.formOpen,
   );
+  const adminUsers = useAdminUsers(
+    query,
+    showNotice,
+    auth.isAdmin && activeKind === "users",
+  );
 
   useEffect(() => {
     setQuery("");
   }, [activeKind]);
+
+  useEffect(() => {
+    if (!auth.isAdmin && activeKind === "users") {
+      setActiveKind("salesOrders");
+    }
+  }, [activeKind, auth.isAdmin]);
 
   const activeError =
     activeKind === "salesOrders"
       ? salesOrders.loadError
       : activeKind === "products"
         ? products.loadError
-        : customers.loadError;
+        : activeKind === "customers"
+          ? customers.loadError
+          : adminUsers.loadError;
 
   return (
     <div className="app-shell">
@@ -58,6 +74,7 @@ export default function App() {
         activeKind={activeKind}
         hasError={Boolean(activeError)}
         username={auth.username ?? ""}
+        isAdmin={auth.isAdmin}
         onNavigate={setActiveKind}
         onSignOut={() => void auth.signOut()}
       />
@@ -86,7 +103,7 @@ export default function App() {
           onEdit={products.openEdit}
           onRetry={() => void products.loadProducts()}
         />
-      ) : (
+      ) : activeKind === "customers" ? (
         <CustomersScreen
           customers={customers.customers}
           filteredCustomers={customers.filteredCustomers}
@@ -97,6 +114,19 @@ export default function App() {
           onCreate={customers.openNew}
           onEdit={customers.openEdit}
           onRetry={() => void customers.loadCustomers()}
+        />
+      ) : (
+        <AdminUsersScreen
+          users={adminUsers.users}
+          filteredUsers={adminUsers.filteredUsers}
+          query={query}
+          loading={adminUsers.loading}
+          loadError={adminUsers.loadError}
+          hasNextPage={Boolean(adminUsers.nextToken)}
+          onQueryChange={setQuery}
+          onCreate={adminUsers.openNew}
+          onRetry={() => void adminUsers.loadUsers()}
+          onLoadNext={() => void adminUsers.loadNext()}
         />
       )}
 
@@ -143,6 +173,16 @@ export default function App() {
           onChange={customers.setForm}
           onSubmit={customers.submit}
           onClose={customers.closeForm}
+        />
+      )}
+      {activeKind === "users" && adminUsers.formOpen && (
+        <AdminUserFormDrawer
+          form={adminUsers.form}
+          errors={adminUsers.formErrors}
+          saving={adminUsers.saving}
+          onChange={adminUsers.setForm}
+          onSubmit={adminUsers.submit}
+          onClose={adminUsers.closeForm}
         />
       )}
       {notice && (

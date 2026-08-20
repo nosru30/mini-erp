@@ -252,6 +252,12 @@ h2 {
   background: var(--paper);
   box-shadow: 0 12px 32px rgba(35, 50, 43, 0.045);
 }
+.load-more-row {
+  padding: 18px 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: center;
+}
 .panel-toolbar {
   min-height: 76px;
   padding: 15px 20px;
