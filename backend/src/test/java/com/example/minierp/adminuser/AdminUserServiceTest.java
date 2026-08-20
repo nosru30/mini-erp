@@ -62,7 +62,7 @@ class AdminUserServiceTest {
     }
 
     @Test
-    void createUsesEmailAsUsernameAndLetsCognitoIssueTemporaryPassword() {
+    void createUsesInternalUuidAndLetsCognitoIssueTemporaryPassword() {
         UserType user = cognitoUser("user@example.com", "山田 太郎");
         when(cognito.adminCreateUser(any(AdminCreateUserRequest.class)))
                 .thenReturn(AdminCreateUserResponse.builder().user(user).build());
@@ -75,7 +75,9 @@ class AdminUserServiceTest {
                 ArgumentCaptor.forClass(AdminCreateUserRequest.class);
         verify(cognito).adminCreateUser(captor.capture());
         AdminCreateUserRequest sent = captor.getValue();
-        assertThat(sent.username()).isEqualTo("user@example.com");
+        assertThat(sent.username())
+                .matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                .doesNotContain("@");
         assertThat(sent.temporaryPassword()).isNull();
         assertThat(sent.desiredDeliveryMediums())
                 .containsExactly(DeliveryMediumType.EMAIL);

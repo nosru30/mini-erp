@@ -1,6 +1,7 @@
 package com.example.minierp.adminuser;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,7 +45,7 @@ public class AdminUserService {
         AdminCreateUserResponse response = cognito.adminCreateUser(
                 AdminCreateUserRequest.builder()
                         .userPoolId(userPoolId)
-                        .username(email)
+                        .username(UUID.randomUUID().toString())
                         .desiredDeliveryMediums(DeliveryMediumType.EMAIL)
                         .userAttributes(
                                 attribute("email", email),
