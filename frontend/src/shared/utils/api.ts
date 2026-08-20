@@ -43,3 +43,32 @@ export async function readError(response: Response): Promise<ApiErrors> {
     return { form: `通信に失敗しました（${response.status}）` };
   }
 }
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly fields: ApiErrors;
+
+  constructor(message: string, status: number, fields: ApiErrors = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.fields = fields;
+  }
+}
+
+export async function apiJson<T>(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  fallbackMessage: string,
+): Promise<T> {
+  const response = await apiFetch(input, init);
+  if (!response.ok) {
+    const fields = await readError(response);
+    throw new ApiError(
+      fields.form ?? Object.values(fields)[0] ?? fallbackMessage,
+      response.status,
+      fields,
+    );
+  }
+  return (await response.json()) as T;
+}

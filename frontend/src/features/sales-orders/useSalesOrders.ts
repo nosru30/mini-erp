@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch, readError } from "../../shared/utils/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import {
+  changeSalesOrderStatus,
+  fetchSalesOrder,
+  fetchSalesOrders,
+  salesOrderKeys,
+  type OrderAction,
+} from "./api";
 import type {
   SalesOrderDetail,
   SalesOrderSummary,
   SavedSalesOrder,
 } from "./types";
-
-type OrderAction = "confirm" | "cancel";
 
 function toSummary(order: SalesOrderDetail): SalesOrderSummary {
   const {
@@ -30,55 +35,48 @@ function toSummary(order: SalesOrderDetail): SalesOrderSummary {
     totalAmount,
   };
 }
+const emptyOrders: SalesOrderSummary[] = [];
 
 export function useSalesOrders(
   query: string,
   showNotice: (message: string) => void,
   enabled: boolean,
 ) {
-  const [orders, setOrders] = useState<SalesOrderSummary[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const loadingRef = useRef(false);
-  const [selectedOrder, setSelectedOrder] = useState<SalesOrderDetail | null>(
-    null,
-  );
+  const queryClient = useQueryClient();
+  const ordersQuery = useQuery({
+    queryKey: salesOrderKeys.all,
+    queryFn: fetchSalesOrders,
+    enabled,
+  });
+  const orders = ordersQuery.data ?? emptyOrders;
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState("");
-  const [action, setAction] = useState<OrderAction | null>(null);
-  const [actionError, setActionError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrderDetail | null>(
     null,
   );
-
-  const loadOrders = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
-    setLoadError("");
-    try {
-      const response = await apiFetch("/api/sales-orders");
-      if (!response.ok) throw new Error("受注情報を取得できませんでした。");
-      setOrders((await response.json()) as SalesOrderSummary[]);
-      setHasLoaded(true);
-    } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "受注情報を取得できませんでした。",
+  const detailQuery = useQuery({
+    queryKey: salesOrderKeys.detail(selectedOrderId ?? 0),
+    queryFn: () => fetchSalesOrder(selectedOrderId!),
+    enabled: detailOpen && selectedOrderId !== null,
+  });
+  const statusMutation = useMutation({
+    mutationFn: changeSalesOrderStatus,
+    onSuccess: (updated, variables) => {
+      const actionLabel = variables.action === "confirm" ? "確定" : "キャンセル";
+      queryClient.setQueryData(salesOrderKeys.detail(updated.id), updated);
+      queryClient.setQueryData<SalesOrderSummary[]>(
+        salesOrderKeys.all,
+        (current = []) =>
+          current.map((item) =>
+            item.id === updated.id ? toSummary(updated) : item,
+          ),
       );
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    if (enabled && !hasLoaded) void loadOrders();
-  }, [enabled, hasLoaded, loadOrders]);
-
+      showNotice(
+        `受注「${updated.orderNumber}」を${actionLabel}しました。`,
+      );
+    },
+  });
   const filteredOrders = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
     return normalized
@@ -103,94 +101,50 @@ export function useSalesOrders(
     setEditingOrder(null);
   };
   const handleSaved = (saved: SavedSalesOrder, editing: boolean) => {
-    const summary = toSummary(saved);
-    setOrders((current) =>
-      editing
-        ? current.map((order) => (order.id === saved.id ? summary : order))
-        : [summary, ...current],
+    queryClient.setQueryData<SalesOrderSummary[]>(
+      salesOrderKeys.all,
+      (current = []) =>
+        editing
+          ? current.map((order) =>
+              order.id === saved.id ? toSummary(saved) : order,
+            )
+          : [toSummary(saved), ...current],
     );
+    queryClient.setQueryData(salesOrderKeys.detail(saved.id), saved);
     closeForm();
     showNotice(
       `受注「${saved.orderNumber}」を${editing ? "更新" : "登録"}しました。`,
     );
   };
-
-  const openDetail = async (id: number) => {
+  const openDetail = (id: number) => {
+    statusMutation.reset();
+    setSelectedOrderId(id);
     setDetailOpen(true);
-    setDetailLoading(true);
-    setDetailError("");
-    setSelectedOrder(null);
-    try {
-      const response = await apiFetch(`/api/sales-orders/${id}`);
-      if (!response.ok) throw new Error("受注情報を取得できませんでした。");
-      setSelectedOrder((await response.json()) as SalesOrderDetail);
-    } catch (error) {
-      setDetailError(
-        error instanceof Error
-          ? error.message
-          : "受注情報を取得できませんでした。",
-      );
-    } finally {
-      setDetailLoading(false);
-    }
   };
   const closeDetail = () => {
     setDetailOpen(false);
-    setSelectedOrder(null);
-    setDetailError("");
+    setSelectedOrderId(null);
+    statusMutation.reset();
   };
-  const changeStatus = async (
-    order: SalesOrderDetail,
-    nextAction: OrderAction,
-  ) => {
+  const changeStatus = (order: SalesOrderDetail, action: OrderAction) => {
     const confirmed = window.confirm(
-      nextAction === "confirm"
-        ? "この受注を確定します。確定後は受注内容を編集できません。よろしいですか？"
+      action === "confirm"
+        ? "この受注を確定します。" +
+            "確定後は受注内容を編集できません。よろしいですか？"
         : "この受注をキャンセルします。よろしいですか？",
     );
-    if (!confirmed) return;
-    setAction(nextAction);
-    setActionError("");
-    try {
-      const response = await apiFetch(
-        `/api/sales-orders/${order.id}/${nextAction}`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        const errors = await readError(response);
-        throw new Error(
-          errors.form ??
-            Object.values(errors)[0] ??
-            "受注状態を変更できませんでした。",
-        );
-      }
-      const updated = (await response.json()) as SalesOrderDetail;
-      setSelectedOrder(updated);
-      setOrders((current) =>
-        current.map((item) =>
-          item.id === updated.id ? toSummary(updated) : item,
-        ),
-      );
-      showNotice(
-        `受注「${updated.orderNumber}」を${nextAction === "confirm" ? "確定" : "キャンセル"}しました。`,
-      );
-    } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "受注状態を変更できませんでした。",
-      );
-    } finally {
-      setAction(null);
+    if (confirmed) {
+      statusMutation.reset();
+      statusMutation.mutate({ id: order.id, action });
     }
   };
-
   return {
     orders,
     filteredOrders,
-    loading: loading || (enabled && !hasLoaded && !loadError),
-    loadError,
-    loadOrders,
+    loading: enabled && ordersQuery.isPending,
+    loadError:
+      ordersQuery.error instanceof Error ? ordersQuery.error.message : "",
+    loadOrders: ordersQuery.refetch,
     formOpen,
     editingOrder,
     openNew,
@@ -198,11 +152,15 @@ export function useSalesOrders(
     closeForm,
     handleSaved,
     detailOpen,
-    selectedOrder,
-    detailLoading,
-    detailError,
-    action,
-    actionError,
+    selectedOrder: detailQuery.data ?? null,
+    detailLoading: detailQuery.isPending,
+    detailError:
+      detailQuery.error instanceof Error ? detailQuery.error.message : "",
+    action: statusMutation.isPending
+      ? (statusMutation.variables?.action ?? null)
+      : null,
+    actionError:
+      statusMutation.error instanceof Error ? statusMutation.error.message : "",
     openDetail,
     closeDetail,
     changeStatus,

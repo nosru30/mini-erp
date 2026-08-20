@@ -6,11 +6,13 @@ import {
   signOut,
 } from "aws-amplify/auth";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type AuthState } from "./authContext";
 import { cognitoConfigured } from "./config";
 import { AUTH_SESSION_EXPIRED_EVENT } from "./sessionEvents";
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(cognitoConfigured);
   const [username, setUsername] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -38,6 +40,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const clearExpiredSession = () => {
+      queryClient.clear();
       setUsername(null);
       setIsAdmin(false);
     };
@@ -47,7 +50,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         AUTH_SESSION_EXPIRED_EVENT,
         clearExpiredSession,
       );
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -70,22 +73,27 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           return "newPasswordRequired";
         }
 
-        throw new Error(`未対応の認証ステップです: ${result.nextStep.signInStep}`);
+        throw new Error(
+          `未対応の認証ステップです: ${result.nextStep.signInStep}`,
+        );
       },
       async confirmNewPassword(password) {
         const result = await confirmSignIn({ challengeResponse: password });
         if (!result.isSignedIn) {
-          throw new Error(`未対応の認証ステップです: ${result.nextStep.signInStep}`);
+          throw new Error(
+            `未対応の認証ステップです: ${result.nextStep.signInStep}`,
+          );
         }
         await loadAuthenticatedUser();
       },
       async signOut() {
         await signOut();
+        queryClient.clear();
         setUsername(null);
         setIsAdmin(false);
       },
     }),
-    [isAdmin, loading, username],
+    [isAdmin, loading, queryClient, username],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

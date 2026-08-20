@@ -1,8 +1,9 @@
+import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import type { Customer } from "../customers/types";
 import type { Product } from "../products/types";
-import { apiFetch } from "../../shared/utils/api";
 import { formatCurrency, today } from "../../shared/utils/format";
+import { saveSalesOrder } from "./api";
 import type { SavedSalesOrder } from "./types";
 
 type EditableOrder = SavedSalesOrder | null;
@@ -32,8 +33,18 @@ export default function OrderFormDrawer({
       quantity: String(item.quantity),
     })) ?? [{ key: 1, productCode: "", quantity: "1" }],
   );
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const saveMutation = useMutation({
+    mutationFn: saveSalesOrder,
+    onSuccess: (saved) => onSaved(saved, Boolean(order)),
+    onError: (cause) =>
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "サーバーに接続できませんでした。",
+      ),
+  });
+  const saving = saveMutation.isPending;
 
   const activeCustomers = customers.filter((customer) => customer.active);
   const activeProducts = products.filter((product) => product.active);
@@ -70,7 +81,7 @@ export default function OrderFormDrawer({
     setLines((current) => current.filter((line) => line.key !== key));
   };
 
-  const submit = async (event: FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     setError("");
 
@@ -86,46 +97,15 @@ export default function OrderFormDrawer({
       return;
     }
 
-    setSaving(true);
-    try {
-      const response = await apiFetch(
-        order ? `/api/sales-orders/${order.id}` : "/api/sales-orders",
-        {
-          method: order ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerCode,
-            orderDate,
-            items: lines.map((line) => ({
-              productCode: line.productCode,
-              quantity: Number(line.quantity),
-            })),
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        try {
-          const body = (await response.json()) as Record<string, string> & {
-            message?: string;
-          };
-          setError(
-            body.message ??
-              Object.values(body)[0] ??
-              "受注を保存できませんでした。",
-          );
-        } catch {
-          setError("受注を保存できませんでした。");
-        }
-        return;
-      }
-
-      onSaved((await response.json()) as SavedSalesOrder, Boolean(order));
-    } catch {
-      setError("サーバーに接続できませんでした。");
-    } finally {
-      setSaving(false);
-    }
+    saveMutation.mutate({
+      id: order?.id ?? null,
+      customerCode,
+      orderDate,
+      items: lines.map((line) => ({
+        productCode: line.productCode,
+        quantity: Number(line.quantity),
+      })),
+    });
   };
 
   return (

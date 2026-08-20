@@ -1,63 +1,68 @@
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
+import { useMemo, useState, type FormEvent } from "react";
 import type { ApiErrors } from "../../shared/types";
-import { apiFetch, readError } from "../../shared/utils/api";
+import { ApiError } from "../../shared/utils/api";
+import { adminUserKeys, createAdminUser, fetchAdminUsers } from "./api";
 import type { AdminUser, AdminUserForm, AdminUserPage } from "./types";
 
 const initialForm: AdminUserForm = { email: "", name: "" };
+const emptyUsers: AdminUser[] = [];
 
 export function useAdminUsers(
   query: string,
   showNotice: (message: string) => void,
   enabled: boolean,
 ) {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [nextToken, setNextToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const loadingRef = useRef(false);
+  const queryClient = useQueryClient();
+  const usersQuery = useInfiniteQuery({
+    queryKey: adminUserKeys.all,
+    queryFn: ({ pageParam }) => fetchAdminUsers(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextToken ?? undefined,
+    enabled,
+  });
+  const users = useMemo(
+    () => usersQuery.data?.pages.flatMap((page) => page.users) ?? emptyUsers,
+    [usersQuery.data],
+  );
   const [formOpen, setFormOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<ApiErrors>({});
   const [form, setForm] = useState(initialForm);
-
-  const loadUsers = useCallback(async (token?: string, append = false) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
-    setLoadError("");
-    try {
-      const parameters = new URLSearchParams({ limit: "60" });
-      if (token) parameters.set("nextToken", token);
-      const response = await apiFetch(`/api/admin/users?${parameters}`);
-      if (!response.ok) throw new Error("ユーザー一覧を取得できませんでした。");
-      const page = (await response.json()) as AdminUserPage;
-      setUsers((current) => (append ? [...current, ...page.users] : page.users));
-      setNextToken(page.nextToken);
-      setHasLoaded(true);
-    } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "ユーザー一覧を取得できませんでした。",
+  const createMutation = useMutation({
+    mutationFn: createAdminUser,
+    onSuccess: (created) => {
+      queryClient.setQueryData<InfiniteData<AdminUserPage, string | null>>(
+        adminUserKeys.all,
+        (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page, index) =>
+                  index === 0
+                    ? { ...page, users: [created, ...page.users] }
+                    : page,
+                ),
+              }
+            : current,
       );
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (enabled && !hasLoaded) void loadUsers();
-  }, [enabled, hasLoaded, loadUsers]);
-
+      setFormOpen(false);
+      setForm(initialForm);
+      showNotice(
+        `ユーザー「${created.email ?? created.username}」を作成しました。`,
+      );
+    },
+    onError: (error) =>
+      setFormErrors(
+        error instanceof ApiError
+          ? error.fields
+          : { form: "サーバーに接続できませんでした。" },
+      ),
+  });
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
     return normalized
@@ -68,58 +73,34 @@ export function useAdminUsers(
         )
       : users;
   }, [query, users]);
-
   const openNew = () => {
     setForm(initialForm);
     setFormErrors({});
     setFormOpen(true);
   };
-
   const closeForm = () => {
-    if (saving) return;
-    setFormOpen(false);
-    setFormErrors({});
-  };
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
-    setFormErrors({});
-    try {
-      const response = await apiFetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email.trim(),
-          name: form.name.trim(),
-        }),
-      });
-      if (!response.ok) {
-        setFormErrors(await readError(response));
-        return;
-      }
-      const created = (await response.json()) as AdminUser;
-      setUsers((current) => [created, ...current]);
+    if (!createMutation.isPending) {
       setFormOpen(false);
-      setForm(initialForm);
-      showNotice(`ユーザー「${created.email ?? created.username}」を作成しました。`);
-    } catch {
-      setFormErrors({ form: "サーバーに接続できませんでした。" });
-    } finally {
-      setSaving(false);
+      setFormErrors({});
     }
   };
-
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setFormErrors({});
+    createMutation.mutate(form);
+  };
+  const lastPage = usersQuery.data?.pages.at(-1);
   return {
     users,
     filteredUsers,
-    nextToken,
-    loading: loading || (enabled && !hasLoaded && !loadError),
-    loadError,
-    loadUsers,
-    loadNext: () => nextToken && loadUsers(nextToken, true),
+    nextToken: lastPage?.nextToken ?? null,
+    loading: enabled && (usersQuery.isPending || usersQuery.isFetchingNextPage),
+    loadError:
+      usersQuery.error instanceof Error ? usersQuery.error.message : "",
+    loadUsers: usersQuery.refetch,
+    loadNext: usersQuery.fetchNextPage,
     formOpen,
-    saving,
+    saving: createMutation.isPending,
     formErrors,
     form,
     setForm,
